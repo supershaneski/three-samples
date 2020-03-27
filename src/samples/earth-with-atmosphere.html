@@ -29,7 +29,7 @@ body {
 
 <script>
 var orbit, scene, camera, renderer;
-var earth, cloud;
+var skybox, earth, cloud;
 var moons = [];
 
 var px = 0, py = 0, pz = 0;
@@ -37,8 +37,10 @@ var t = 0, ts = 0;
 
 function init() {
 
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
-    camera.position.set( 0, 2, 10);
+    //camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 1000 );
+    //camera.position.set( 0, 2, 10);
+    camera.position.set( 0, 2, 15);
     camera.rotation.x = 0;
 
     scene = new THREE.Scene();
@@ -52,10 +54,10 @@ function init() {
     var light	= new THREE.AmbientLight( 0x888888 );
     scene.add( light );
     
-	var light2	= new THREE.DirectionalLight( 0xcccccc, 1 );
+	var light2	= new THREE.DirectionalLight( 0xcccccc, 0.5 );
 	light2.position.set(5,3,5);
 	scene.add( light2 );
-
+    
     var tdxcontainer = document.getElementById("tdxcontainer");
     
     var width = tdxcontainer.offsetWidth;
@@ -134,14 +136,30 @@ function init() {
 
     cloud = new THREE.Mesh(geometry5, material5);
     scene.add(cloud);
+
+    //var texture = new THREE.TextureLoader().load("/assets/moon.jpg");
+    //var texture = new THREE.TextureLoader().load("/assets/galaxy.jpg");
+    var texture = new THREE.TextureLoader().load("/assets/starfield.png");
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set( 1, 1 );
     
+    //var material = new THREE.MeshPhongMaterial({ color: Math.random()*0xffffff, map: texture });
+    var material = new THREE.MeshPhongMaterial({ color: 0x666666, map: texture });
+    var geometry = new THREE.SphereGeometry(100,24,24);
+    material.side = THREE.BackSide;
+    skybox = new THREE.Mesh( geometry, material );
+    skybox.material.emissive = new THREE.Color( 0.1, 0.1, 0.1 );
+    skybox.position.set(0,0,0);
+    scene.add( skybox );
+
     for(var i = 0; i < 24; i++ ){
         var color = Math.random()*0xffffff;
         var mat = new THREE.MeshPhongMaterial({ color: color, opacity: 0.75 });
         
-        var rad = 0.5;
-        if(i >= 12) rad = 0.25;
-        if(i == 24) rad = 0.75;
+        var rad = 0.25;
+        if(i >= 12) rad = 0.125;
+        if(i == 24) rad = 0.5;
         
         var geom = new THREE.SphereGeometry(rad,12,12);
         var obj = new THREE.Mesh(geom, mat);
@@ -197,8 +215,11 @@ function animate() {
     t += 0.01;
     ts += 0.03;
     
+    skybox.rotation.y -= 0.0005;
+    skybox.rotation.x += 0.0005;
 
     earth.rotation.y += 0.0005;
+    
     cloud.rotation.y += 0.0011;
     cloud.rotation.x -= 0.0011;
 

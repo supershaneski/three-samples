@@ -111,7 +111,8 @@ Math.hypot = Math.hypot || function() {
         scene.add( light2 );
         scene.add( light3 );
         
-        var texture = new THREE.TextureLoader().load("/assets/moon.jpg");
+        //var texture = new THREE.TextureLoader().load("/assets/moon.jpg");
+        var texture = new THREE.TextureLoader().load("/assets/galaxy.jpg");
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set( 1, 1 );

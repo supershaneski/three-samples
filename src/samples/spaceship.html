@@ -30,6 +30,7 @@ var mesh, newmesh, disp;
 var particleSystem, particles;
 var particleSystem1;
 var loader, spaceship;
+var tim = 0;
 
 function init() {
     
@@ -79,12 +80,12 @@ function init() {
         space.rotation.z = Math.PI;
         
         var material = new THREE.PointsMaterial({
-            //color: 0xFF0000,
+            color: 0xAAFF00, //0xFF0000,
             size: 0.125,
             map: THREE.ImageUtils.loadTexture(
                 "/assets/yellow.png"
             ),
-            //blending: THREE.SubtractiveBlending,
+            blending: THREE.AdditiveBlending, //THREE.NormalBlending, //THREE.MultiplyBlending, //THREE.AdditiveBlending, //THREE.SubtractiveBlending,
             transparent: true
         });
 
@@ -123,6 +124,8 @@ window.addEventListener( 'resize', function(){
 
 document.addEventListener("keyup", event => {
     flagMove = false;
+    flag = false;
+    dx = 0;
 });
 
 document.addEventListener("keydown", event => {
@@ -133,10 +136,12 @@ document.addEventListener("keydown", event => {
 
     switch(event.keyCode) {
         case 65: // A
-            moveHoriz(-1);
+            //moveHoriz(-1);
+            moveHoriz(-0.95);
             break;
         case 68: // D
-            moveHoriz(1);
+            //moveHoriz(1);
+            moveHoriz(0.95);
             break;
         default:
             //
@@ -144,30 +149,57 @@ document.addEventListener("keydown", event => {
 
 });
 
+var dx = 0;
+var flag = false;
 function moveHoriz(n) {
     flagMove = true;
     timtum = 0;
     speed = n;
+    if(!flag) {
+        dx = 0;
+        flag = true;
+    }
+    
 }
 
 function playMove() {
     
-    if(!flagMove) {
-        try{
-            spaceship.rotation.z = 0;
-        } catch(err){
-            //
+    if(typeof spaceship !== "undefined") {
+        spaceship.position.x += speed * 0.1 + speed * 0.05 * timtum * timtum;
+        if(flag) {
+            if(speed > 0) {
+                var rz = -1*(Math.PI/6)*[dx/10];
+                if(rz < - Math.PI/6) rz = - Math.PI/6;
+                //spaceship.rotation.z = - Math.PI/6;
+                spaceship.rotation.z = rz;
+            } else if(speed < 0){
+                var rz = (Math.PI/6)*[dx/10];
+                if(rz > Math.PI/6) rz = Math.PI/6;
+                //spaceship.rotation.z = Math.PI/6;
+                spaceship.rotation.z = rz;
+            }
+        } else {
+            if(speed > 0) {
+                var rz = (-Math.PI/6) + (Math.PI/6)*[dx/5];
+                if(rz > 0) {
+                    rz = 0;
+                    speed = 0;
+                }
+                spaceship.rotation.z = rz;
+            } else if(speed < 0){
+                var rz = (Math.PI/6) - (Math.PI/6)*[dx/5];
+                if(rz < 0) {
+                    rz = 0;
+                    speed = 0;
+                }
+                spaceship.rotation.z = rz;
+            }
         }
-        return;
+        spaceship.position.y = 0.02*Math.sin(tim*Math.PI/10)
     }
     
-    spaceship.position.x += speed * 0.1 + speed * 0.05 * timtum * timtum;
-    if(speed > 0) {
-        spaceship.rotation.z = - Math.PI/6;
-    } else {
-        spaceship.rotation.z = Math.PI/6;
-    }
-
+    dx++;
+    tim++;
 }
 
 var speed = 0;
@@ -182,13 +214,15 @@ var aa;
 function animate() {
     requestAnimationFrame( animate );
     
-    for(var i = 0; i < 100; i++) {
-        var v = particleSystem.geometry.vertices[i];
-        var z = v.z + 0.075;
-        if(z > v.max) z = -2;
-        v.z = z;
+    if(typeof particleSystem !== "undefined") {
+        for(var i = 0; i < 100; i++) {
+            var v = particleSystem.geometry.vertices[i];
+            var z = v.z + 0.075;
+            if(z > v.max) z = -2;
+            v.z = z;
+        }
+        particleSystem.geometry.verticesNeedUpdate = true;
     }
-    particleSystem.geometry.verticesNeedUpdate = true;
     
     playMove();
     render();
