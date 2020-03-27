@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+<title>Terrain Generated Based from an Image</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta charset="utf-8">
+<style>
+body{
+    background:#fff;
+    margin:0px;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+}
+canvas{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+}
+</style>
+<body>
+
+<script>
+var flagdown = false;
+
+document.onmousedown = function(e){
+    e.preventDefault();
+    if(e.button == 0){
+        flagdown = true;
+    }
+}
+
+document.onmouseup = function(e){
+    e.preventDefault();
+    flagdown = false;
+}
+
+document.onmousemove = function(e){
+    e.preventDefault();
+    if(!flagdown)return;
+    
+    var rx = e.movementX;
+    var ry = e.movementY;
+    
+    if(flagkey){
+        var p = camera.position;
+        var x = p.x;
+        var y = p.y + ry;
+        var z = p.z;
+        camera.position.set(x,y,z);
+    } else {
+        var angley = camera.rotation.y;
+        angley = angley*180/Math.PI;
+        angley = angley + 0.1*rx;
+        camera.rotation.y = angley*Math.PI/180;
+    }
+    
+    render();
+}
+
+document.onmousewheel = function(e){
+    //e.preventDefault();
+    var delta = e.wheelDelta;
+    
+    delta = delta*0.1;
+    
+    var px = camera.position.x;
+    var py = camera.position.y;
+    var pz = camera.position.z;
+    
+    var angle = camera.rotation.y;
+    var x = px + delta*Math.sin(angle);
+    var y = py;
+    var z = pz + delta*Math.cos(angle);
+    
+    camera.position.set(x,y,z);
+    
+    render();
+}
+
+var flagfly = false;
+var fly_max_x = 0;
+var fly_min_x = 0;
+var fly_max_y = 0;
+var fly_min_y = 0;
+
+function fly(){
+    
+    var delta = -0.75;
+    
+    var px = camera.position.x;
+    var py = camera.position.y;
+    var pz = camera.position.z;
+    var angle = camera.rotation.y;
+
+    deg = angle*180/Math.PI;
+    
+    if(px < fly_min_x || px > fly_max_x || pz < fly_min_y || pz > fly_max_y){
+        var reflected = deg + 180 + Math.random()*30;
+        angle = reflected*Math.PI/180;
+        camera.rotation.y = angle;
+    }
+
+    var x = px + delta*Math.sin(angle);
+    var y = py;
+    var z = pz + delta*Math.cos(angle);
+    
+    camera.position.set(x,y,z);
+
+    render();
+}
+
+var flagkey = false;
+var tim;
+document.onkeydown = function(e){
+    e.preventDefault();
+    
+    switch(e.keyCode){
+        case 32: //shift
+            if(flagfly){
+                flagfly = false;
+                clearInterval(tim)
+            } else {
+                flagfly = true;
+                tim = setInterval(function(){
+                    fly();
+                },30);
+            }
+            break;
+        case 16: //shift
+            flagkey = true;
+            break;
+        default:
+            //
+    }
+    
+}
+document.onkeyup = function(e){
+    flagkey = false;
+}
+
+</script>
+
+<script src="../js/three.js"></script>
+<script src="../js/ShaneTerrainObject.js"></script>
+<script src="../js/controls/TrackballControls.js"></script>
+<script>
+    var data = [];
+    var imagesrc = "/assets/map4.jpg";
+    var mapscale = 5;
+    var mapheight = 320;
+    
+    var terrain, terrain_data;
+    THREE.ShaneTerrainLoader(imagesrc, function(obj){
+        terrain_data = obj;
+        init();
+        animate();
+    });
+
+    var renderer, camera, scene, controls;
+    var raycaster, mouse;
+    var radius, theta;
+    
+    function init(){
+        renderer = new THREE.WebGLRenderer({ antialias: false,alpha:true });
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+        
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 1000);
+        camera.position.set( 0, 5, 120 );
+        
+        radius = 100;
+        theta = 0;
+        
+        var light1 = new THREE.AmbientLight( 0xFFFFFF, 0.3 );
+        var light2 = new THREE.DirectionalLight( 0xFFEFEE, 0.3 );
+        var light3 = new THREE.PointLight( 0xffffDD, 0.6);
+        light2.position.set(1,0,1).normalize();
+        light3.position.set(0, 100, 0);
+        
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xe6ffff );
+		scene.fog = new THREE.FogExp2( 0xe6ffff, 0.0025 );
+        scene.add( light1 );
+        scene.add( light2 );
+        scene.add( light3 );
+        
+        var color = Math.random()*0xffffff;
+        var terrain = new THREE.ShaneTerrainObject({
+            file: terrain_data.file,
+            scale: mapscale,
+            width: terrain_data.width,
+            height: terrain_data.height,
+            amplitude: mapheight,
+            data: terrain_data.data,
+            color: color
+        });
+        scene.add( terrain );
+        
+        fly_max_x = mapscale*terrain_data.width/2;
+        fly_min_x = -mapscale*terrain_data.width/2;
+        fly_max_y = mapscale*terrain_data.height/2;
+        fly_min_y = -mapscale*terrain_data.height/2;
+        
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        
+        window.onresize = function(){
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+        
+    }
+    
+    function animate(){
+        requestAnimationFrame(animate);
+        theta += 0.1;
+		render();
+    }
+    
+    function render(){
+        renderer.render(scene, camera);
+    }
+    
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+	"name": "threejs-samples",
+	"scripts": {
+		"serve": "serve src/"
+	}
+}

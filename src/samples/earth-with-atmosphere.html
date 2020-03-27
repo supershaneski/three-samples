@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html><head><title>Rotating Earth with Atmosphere</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+body {
+    font-family: monospace;
+    background-color: #000; /*#fff;*/
+    color: #a0a0a0;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0px;
+}
+#tdxcontainer {
+    background-color: transparent;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
+    overflow: hidden;
+}
+</style>
+<script src="../js/three.js" type="text/javascript"></script>
+<script src="../js/controls/OrbitControls.js" type="text/javascript"></script>
+</head>
+<body>
+
+<div id="tdxcontainer"></div>
+
+<script>
+var orbit, scene, camera, renderer;
+var earth, cloud;
+var moons = [];
+
+var px = 0, py = 0, pz = 0;
+var t = 0, ts = 0;
+
+function init() {
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
+    camera.position.set( 0, 2, 10);
+    camera.rotation.x = 0;
+
+    scene = new THREE.Scene();
+
+    var radius = 10;
+    var radials = 16;
+    var circles = 8;
+    var divisions = 64;
+    var helper = new THREE.PolarGridHelper( radius, radials, circles, divisions );
+    
+    var light	= new THREE.AmbientLight( 0x888888 );
+    scene.add( light );
+    
+	var light2	= new THREE.DirectionalLight( 0xcccccc, 1 );
+	light2.position.set(5,3,5);
+	scene.add( light2 );
+
+    var tdxcontainer = document.getElementById("tdxcontainer");
+    
+    var width = tdxcontainer.offsetWidth;
+    var height = tdxcontainer.offsetHeight;
+
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setSize( width, height );
+    //renderer.setClearColor(0xffffff );
+    renderer.setClearColor(0x000000);
+    tdxcontainer.appendChild( renderer.domElement );
+
+    orbit = new THREE.OrbitControls(camera, renderer.domElement);
+    orbit.update();
+    orbit.addEventListener( 'change', render );
+    
+    var material4 = new THREE.MeshPhongMaterial();
+    material4.map = THREE.ImageUtils.loadTexture('/assets/earthmap1k.jpg');
+    material4.bumpMap = THREE.ImageUtils.loadTexture('/assets/earthbump1k.jpg');
+    material4.bumpScale = 0.3;
+    material4.specularMap = THREE.ImageUtils.loadTexture('/assets/earthspec1k.jpg');
+    material4.specular = new THREE.Color(0x333333);
+
+    var geometry4 = new THREE.SphereGeometry(5,32,32);
+    earth = new THREE.Mesh( geometry4, material4 );
+    scene.add(earth);
+    
+    var canvasResult	= document.createElement('canvas');
+	canvasResult.width	= 1024;
+	canvasResult.height	= 512;
+	var contextResult	= canvasResult.getContext('2d')	;	
+
+	var imageMap	= new Image();
+	imageMap.addEventListener("load", function() {
+		
+		var canvasMap	= document.createElement('canvas');
+		canvasMap.width	= imageMap.width;
+		canvasMap.height= imageMap.height;
+		var contextMap	= canvasMap.getContext('2d');
+		contextMap.drawImage(imageMap, 0, 0);
+		var dataMap	= contextMap.getImageData(0, 0, canvasMap.width, canvasMap.height);
+
+		var imageTrans	= new Image();
+		imageTrans.addEventListener("load", function(){
+			var canvasTrans		= document.createElement('canvas');
+			canvasTrans.width	= imageTrans.width;
+			canvasTrans.height	= imageTrans.height;
+			var contextTrans	= canvasTrans.getContext('2d');
+			contextTrans.drawImage(imageTrans, 0, 0);
+			var dataTrans		= contextTrans.getImageData(0, 0, canvasTrans.width, canvasTrans.height);
+			var dataResult		= contextMap.createImageData(canvasMap.width, canvasMap.height);
+			for(var y = 0, offset = 0; y < imageMap.height; y++){
+				for(var x = 0; x < imageMap.width; x++, offset += 4){
+					dataResult.data[offset+0]	= dataMap.data[offset+0];
+					dataResult.data[offset+1]	= dataMap.data[offset+1];
+					dataResult.data[offset+2]	= dataMap.data[offset+2];
+					dataResult.data[offset+3]	= 255 - dataTrans.data[offset+0];
+				}
+            }
+            
+			contextResult.putImageData(dataResult,0,0);
+            material5.map.needsUpdate = true;
+            
+		})
+		imageTrans.src	= '/assets/earthcloudmaptrans.jpg';
+	}, false);
+    imageMap.src	= '/assets/earthcloudmap.jpg';
+    
+    var geometry5   = new THREE.SphereGeometry(5.05, 32, 32);
+    var material5  = new THREE.MeshPhongMaterial({
+        map     : new THREE.Texture(canvasResult),
+        side        : THREE.DoubleSide,
+        opacity     : 0.8,
+        transparent : true,
+        depthWrite  : false,
+    });
+
+    cloud = new THREE.Mesh(geometry5, material5);
+    scene.add(cloud);
+    
+    for(var i = 0; i < 24; i++ ){
+        var color = Math.random()*0xffffff;
+        var mat = new THREE.MeshPhongMaterial({ color: color, opacity: 0.75 });
+        
+        var rad = 0.5;
+        if(i >= 12) rad = 0.25;
+        if(i == 24) rad = 0.75;
+        
+        var geom = new THREE.SphereGeometry(rad,12,12);
+        var obj = new THREE.Mesh(geom, mat);
+        moons.push( obj );
+        scene.add( obj );
+    }
+
+    window.addEventListener( 'resize', onWindowResize, false );
+
+}
+
+function onWindowResize(){
+    var tdxcontainer = document.getElementById("tdxcontainer");
+    
+    var width = tdxcontainer.offsetWidth; //500;
+    var height = tdxcontainer.offsetHeight; //300;
+    
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( width, height );
+    
+}
+
+function animate() {
+
+    requestAnimationFrame( animate );
+    
+    
+    var delta1 = 9;
+    var delta2 = 13;
+    for(var i = 0; i < moons.length; i++ ){
+        var obj = moons[i];
+        var rnd = Math.random();
+        if(i > 11 && i < 24) {
+            px = delta1*Math.cos(ts + 0.5*i);
+            py = delta1*Math.sin(ts + 0.5*i);
+            pz = delta1*Math.sin(ts + 0.5*i);
+        } else if(i == 24){
+            var d = delta1 - (t%delta1);
+            px = d;
+            py = delta2*Math.sin(t);
+            pz = 0;
+        } else {
+            px = delta2*Math.cos(t + 0.5*i);
+            py = delta2*Math.sin(t + 0.5*i);
+            pz = 0;
+        }
+        obj.position.set(px,py,pz);
+        //moons[i].position.set(px,py,pz);
+    }
+
+    t += 0.01;
+    ts += 0.03;
+    
+
+    earth.rotation.y += 0.0005;
+    cloud.rotation.y += 0.0011;
+    cloud.rotation.x -= 0.0011;
+
+    render();
+}
+
+function render() {
+    
+    renderer.render( scene, camera );
+
+}
+
+init();
+animate();
+
+</script>
+</body>
+</html>

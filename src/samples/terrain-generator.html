@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html><head><title>Terrain Generator</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+body {
+    font-family: monospace;
+    background-color: #fff;
+    color: #999;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0px;
+}
+</style>
+<script src="../js/three.js" type="text/javascript"></script>
+<script src="../js/controls/OrbitControls.js" type="text/javascript"></script>
+<script src='../js/SimplexNoise.js'></script>
+</head>
+<body>
+
+<script>
+var scene, camera, renderer;
+var orbit, timer, ball;
+var x0, y0;
+var v0, a0, angle;
+var vx0, vy0, ax0, ay0;
+var flag = false;
+var t = 0;
+var balls = [];
+var mesh, newmesh, disp;
+var particleSystem, particles;
+var particleSystem1;
+
+var dae, loader, particunt;
+var shanelava, lavadabadoo;
+var sea;
+
+function init() {
+    
+    scene = new THREE.Scene();
+    
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
+    camera.position.set( 10, 5, 10);
+    camera.lookAt(scene.position);
+
+    var grid = new THREE.GridHelper(20, 20);
+    scene.add( grid );
+    
+    var light1	= new THREE.AmbientLight( 0x202020 );
+    scene.add( light1 );
+    var light2	= new THREE.DirectionalLight('white', 0.8);
+    light2.position.set(0.5, 0.0, 2);
+    scene.add( light2 );
+    var light3	= new THREE.DirectionalLight('white', 0.8);
+    light3.position.set(-0.5, -0.5, -2);
+    scene.add( light3 );
+    var light4	= new THREE.DirectionalLight('white', 0.4);
+    light4.position.set(0.0, 1.0, 0.0);
+    light4.rotation.x = Math.PI/2;
+    scene.add( light4 );
+    
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setClearColor(0xffffff ); //b0f442
+    document.body.appendChild( renderer.domElement );
+    
+    orbit = new THREE.OrbitControls(camera, renderer.domElement);
+    orbit.update();
+    orbit.addEventListener( 'change', render );
+
+    timer = new THREE.Clock();
+    
+    var mylength = 128;
+    var simplex	= new SimplexNoise();
+    var mapheight = [];
+	for(var x = 0; x < mylength; x++){
+        mapheight[x] = [];
+        for(var y = 0; y < mylength; y++){
+			var height	= 0
+			var level	= 8
+			height	+= (simplex.noise(x/level, y/level)/2 + 0.5) * 0.125
+			level	*= 3
+			height	+= (simplex.noise(x/level, y/level)/2 + 0.5) * 0.25
+			level	*= 2
+			height	+= (simplex.noise(x/level, y/level)/2 + 0.5) * 0.5
+			level	*= 2
+			height	+= (simplex.noise(x/level, y/level)/2 + 0.5) * 1
+			height	/= 1+0.5+0.25+0.125
+            mapheight[x][y] = height;
+        }
+    }
+    var canvas = document.createElement('canvas');
+	canvas.width = mylength;
+	canvas.height = mylength;
+	var context	= canvas.getContext("2d");
+	for(var x = 0; x < canvas.width; x++){
+		for(var y = 0; y < canvas.height; y++){
+			var height	= mapheight[x][y];
+			
+            var color	= new THREE.Color();
+            if( height < 0.5 ){
+                height		= (height*2)*0.5 + 0.2;
+                color.setRGB(0,0, height);
+            }else if( height < 0.7 ){
+                height		= (height-0.5)/0.2;
+                height		= height*0.5 + 0.2;
+                color.setRGB(0,height, 0);
+            }else{
+                height		= (height-0.7)/0.3;
+                height		= height*0.5 + 0.5;
+                color.setRGB(height,height, height);
+            }
+            
+            context.fillStyle = color.getStyle();
+			context.fillRect(x, y, 1, 1);
+		}
+    }
+    
+    var geometry = new THREE.PlaneGeometry( 10, 10, 127, 127 );
+    var c = 0;
+    for ( var y = 0; y < 128; y ++ ) {
+        for ( var x = 0; x < 128; x ++ ) {
+            var height = 4*mapheight[x][y];
+
+            var v = geometry.vertices[c];
+            v.z+=height;
+            geometry.vertices[c] = v;
+
+            c++;
+        }
+    }    
+    geometry.verticesNeedUpdate = true;
+    
+    var texture = new THREE.CanvasTexture(context.canvas);
+    var material = new THREE.MeshPhongMaterial( { map: texture, shading: THREE.FlatShading, color: 0xffffff, side: THREE.DoubleSide} );
+    var plane = new THREE.Mesh( geometry, material );
+    plane.rotation.x = - Math.PI/2;
+    scene.add( plane );
+
+    var geometry1 = new THREE.PlaneGeometry( 10, 10, 127, 127 );
+    var c = 0;
+    for ( var y = 0; y < 128; y ++ ) {
+        for ( var x = 0; x < 128; x ++ ) {
+
+            var v = geometry1.vertices[c];
+            v.z+=0.01*Math.random();
+
+            v.height = Math.random();
+            geometry1.vertices[c] = v;
+
+            c++;
+        }
+    }
+    
+    geometry1.computeFaceNormals();
+    geometry1.computeVertexNormals();
+
+    var material1 = new THREE.MeshPhongMaterial( { specular: 0xcccccc, opacity: 0.75, transparent: true, color: 0x13ACAA, side: THREE.DoubleSide} );
+    sea = new THREE.Mesh( geometry1, material1 );
+    sea.rotation.x = - Math.PI/2;
+    sea.position.y = 2;
+    scene.add( sea );
+    
+    var sphereGeometry = new THREE.SphereGeometry(6, 8);
+    for (var i = 0; i < sphereGeometry.vertices.length; i++) {
+        var vertex = sphereGeometry.vertices[i];
+        vertex.y += Math.random() * 3 - 1.5;
+        vertex.x += Math.random() * 1 - .5;
+        vertex.z += Math.random() * 1 - .5;
+    }
+    sphereGeometry.computeFaceNormals();
+    sphereGeometry.computeVertexNormals();
+
+    var sphereMaterial = new THREE.MeshPhongMaterial( { shading: THREE.FlatShading, color: 0xff66ff } );
+    var tree = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    for(var i = 0; i < 100; i++) {
+        var t = tree.clone();
+        var x = generateNumber(-5,5);
+        if(x < 5) x += Math.random();
+        var y = 0;
+        var z = generateNumber(-5,5);
+        if(z < 5) z += Math.random();
+        var m = ( 5 + x ) * 128 / 10; 
+        var n = ( 5 + z ) * 128 / 10; 
+        m = Math.floor(m);
+        n = Math.floor(n);
+        if(m == 128) m = 127;
+        if(n == 128) n = 127;
+        y = 4 * mapheight[m][n];
+        if(y < 0.5 * 4 || y > 0.7 * 4) continue;
+        t.position.set(x,y,z);
+        t.scale.set(0.013,0.013,0.013);
+        scene.add( t );
+    }
+}
+
+function generateNumber(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+window.addEventListener( 'resize', function(){
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+}, false );
+
+function animate() {
+    requestAnimationFrame( animate );
+
+    var t = timer.getElapsedTime();
+    for(var i = 0; i < sea.geometry.vertices.length; i++) {
+        var v = sea.geometry.vertices[i];
+        v.z = v.z + 0.0008*v.height * Math.cos(2 * Math.PI * t / 6);
+    }
+    sea.geometry.verticesNeedUpdate = true;
+    
+    render();
+}
+
+function render() {
+    renderer.render( scene, camera );
+}
+
+init();
+animate();
+
+</script>
+</body>
+</html>

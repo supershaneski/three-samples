@@ -1,0 +1,213 @@
+<!doctype html>
+<html>
+<head>
+<title>Particles Snow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta charset="utf-8">
+<style>
+body{
+    background:#000;
+    margin:0px;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+}
+canvas{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+}
+</style>
+<script>
+
+document.onmousedown = function(e){
+    e.preventDefault();
+}
+
+document.onmouseup = function(e){
+    e.preventDefault();
+}
+
+document.onmousemove = function(e){
+    e.preventDefault();
+}
+
+document.onmousewheel = function(e){
+    e.preventDefault();
+}
+
+document.onkeydown = function(e){
+    e.preventDefault();
+}
+document.onkeyup = function(e){
+    e.preventDefault();
+}
+
+/* mobile */
+Math.hypot = Math.hypot || function() {
+  var y = 0, i = arguments.length;
+  while (i--) y += arguments[i] * arguments[i];
+  return Math.sqrt(y);
+};
+</script>
+<body>
+<script src="../js/three.js"></script>
+<script src="../js/controls/TrackballControls.js"></script>
+<script>
+    
+    var renderer, camera, scene, controls;
+    var raycaster, mouse;
+    var radius, theta;
+    var particles = [];
+    var particle_material;
+    var particle_count = 100;
+    var t = 0;
+    
+	function generateSprite() {
+		var canvas = document.createElement( 'canvas' );
+		canvas.width = 16;
+		canvas.height = 16;
+		var context = canvas.getContext( '2d' );
+		var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
+		gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
+		gradient.addColorStop( 0.2, 'rgba(0,255,255,1)' );
+		gradient.addColorStop( 0.4, 'rgba(0,0,64,1)' );
+		gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
+		context.fillStyle = gradient;
+		context.fillRect( 0, 0, canvas.width, canvas.height );
+		return canvas;
+	}
+			
+    function init(){
+        
+        renderer = new THREE.WebGLRenderer({ antialias: false,alpha:true });
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+        
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 500);
+        camera.position.set( 0, 0, 100 );
+        camera.lookAt(new THREE.Vector3(0,0,0));
+        
+        radius = 100;
+        theta = 0;
+        
+        controls = new THREE.TrackballControls( camera );
+		controls.rotateSpeed = 1.0;
+		controls.zoomSpeed = 1.2;
+		controls.panSpeed = 0.8;
+		controls.noZoom = false;
+		controls.noPan = false;
+		controls.staticMoving = true;
+		controls.dynamicDampingFactor = 0.3;
+		controls.keys = [ 65, 83, 68 ];
+		controls.addEventListener( 'change', render );
+        
+        var light1 = new THREE.AmbientLight( 0xFFFFFF, 0.1 );
+        var light2 = new THREE.DirectionalLight( 0xFFEFEE, 0.1);
+        var light3 = new THREE.PointLight( 0xffffDD, 0.6);
+        light2.position.set(1,0,1).normalize();
+        light3.position.set(0, 0, 80);
+        
+        scene = new THREE.Scene();
+        scene.add( light1 );
+        scene.add( light2 );
+        scene.add( light3 );
+        
+        particle_material = new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture( generateSprite() ),
+            blending: THREE.AdditiveBlending
+        });
+        
+        var x, y, z = 0;
+        var rad = 0;
+        particle_count = 1000;
+        var rad_delta = 0.0001;
+        for (var i = 0; i < particle_count; i++){
+            var particle = new THREE.Sprite( particle_material);
+            rad += i*rad_delta;
+            var rnd = (10*Math.random()>5)?Math.random():0;
+            x = rad*Math.cos(rnd + i*Math.PI/6);
+            z = rad*Math.sin(rnd + i*Math.PI/6);
+            y = 100*Math.random();
+            particle.position.set(x,y,z);
+            var size = parseInt(10*Math.random())/10;
+            if(size < 0.5) size = 0.5
+            particle.scale.x = particle.scale.y = size;
+            
+            var speed = Math.random();
+            var chance = Math.floor(10*Math.random());
+            if(chance == 5) speed = 2*speed;
+            if(chance == 7) speed = 1.2*speed;
+            
+            particle["shane"] = {
+              t:100*Math.random(),
+              d:speed,
+              y0:y,
+              a:0.2*Math.random()
+            };
+            
+            scene.add( particle );
+            particles.push( particle );
+        }
+        
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        
+        window.onresize = function(){
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+    }
+    
+    function animate(){
+        requestAnimationFrame(animate);
+        
+        //sphere.rotation.y += 0.01;
+        
+        for (var i = 0; i < particle_count; i++){
+            var particle = particles[i];
+            var p = particle.position;
+            particle.shane.t+=0.1;
+            var pt = particle.shane.t;
+            var pd = particle.shane.d;
+            var py0 = particle.shane.y0;
+            var pa = particle.shane.a;
+            
+            var y = py0 - (pd*pt) - (0.5*0.0981*pt*pt);
+            var x = p.x + pa*Math.cos(0.8*y);
+            var z = p.z + pa*Math.sin(0.8*y);
+            
+            var diff = Math.abs(py0 - y);
+            if(diff > 100) {
+                var speed = Math.random();
+                var chance = Math.floor(10*Math.random());
+                if(chance == 5) speed = 2*speed;
+                if(chance == 7) speed = 1.2*speed;
+                
+                particle.shane.t = 0;
+                particle.shane.d = speed;
+                particle.shane.a = 0.1*Math.random();
+            }
+            
+            particle.position.set( x, y, z );
+        }
+        
+        theta += 0.1;
+		controls.update();
+        
+        render();
+    }
+    
+    function render(){
+        renderer.render(scene, camera);
+    }
+    
+    init();
+    animate();
+    
+</script>
+</body>
+</html>
