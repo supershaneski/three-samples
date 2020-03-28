@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html><head><title>Procedural City</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+body {
+    font-family: monospace;
+    background-color: #fff;
+    color: #999;
+    overflow: hidden;
+    margin: 0px;
+    padding: 0px;
+}
+</style>
+<script src="../js/three.js" type="text/javascript"></script>
+<script src="../js/controls/OrbitControls.js" type="text/javascript"></script>
+</head>
+<body>
+
+<script>
+var scene, camera, renderer;
+var orbit;
+
+function init() {
+    
+    scene = new THREE.Scene();
+    
+    //var fogColor = new THREE.Color(0xffeedd);
+    var fogColor = new THREE.Color(0x000000);
+    scene.background = fogColor;
+    scene.fog = new THREE.Fog(fogColor, 0.0025, 20);
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10000 );
+    camera.position.set( 10, 5, 10);
+    camera.lookAt(scene.position);
+
+    var grid = new THREE.GridHelper(20, 20);
+    scene.add( grid );
+    
+    var light1	= new THREE.AmbientLight( 0x202020 );
+    scene.add( light1 );
+    var light2	= new THREE.DirectionalLight('white', 0.8);
+    light2.position.set(0.5, 0.0, 2);
+    scene.add( light2 );
+    var light3	= new THREE.DirectionalLight('white', 0.8);
+    light3.position.set(-0.5, -0.5, -2);
+    scene.add( light3 );
+    var light4	= new THREE.DirectionalLight('white', 0.4);
+    light4.position.set(0.0, 1.0, 0.0);
+    light4.rotation.x = Math.PI/2;
+    scene.add( light4 );
+    
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setClearColor(0xffffff );
+    document.body.appendChild( renderer.domElement );
+    
+    orbit = new THREE.OrbitControls(camera, renderer.domElement);
+    orbit.update();
+    orbit.addEventListener( 'change', render );
+    
+    var box_geometry = new THREE.BoxGeometry( 1, 1, 1 );
+    box_geometry.applyMatrix( new THREE.Matrix4().makeTranslation( 0, 0.5, 0 ) );
+    
+    box_geometry.faceVertexUvs[0][4][0].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][4][1].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][4][2].set( 0, 0 );
+    
+    box_geometry.faceVertexUvs[0][5][0].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][5][1].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][5][2].set( 0, 0 );
+    
+    
+    box_geometry.faceVertexUvs[0][6][0].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][6][1].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][6][2].set( 0, 0 );
+    
+    box_geometry.faceVertexUvs[0][7][0].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][7][1].set( 0, 0 );
+    box_geometry.faceVertexUvs[0][7][2].set( 0, 0 );
+    
+    var buildingMesh= new THREE.Mesh( box_geometry );
+
+    var light = new THREE.Color( 0xffffff );
+    var shadow = new THREE.Color( 0x303050 );
+    
+    var cityGeometry= new THREE.Geometry();
+    for (var i = 0; i < 22; i++) {
+        
+        buildingMesh.position.x = Math.floor( Math.random() * 10 - 5 );
+        buildingMesh.position.z = Math.floor( Math.random() * 10 - 5 );
+        buildingMesh.rotation.y = Math.random()*Math.PI*2;
+
+        buildingMesh.scale.x  = Math.random()*Math.random()*Math.random()*Math.random() * 2 + 1;
+        buildingMesh.scale.z  = buildingMesh.scale.x;
+        buildingMesh.scale.y  = (Math.random() * Math.random() * Math.random() * buildingMesh.scale.x) * 6 + 1;
+        
+        var value = 1 - Math.random() * Math.random();
+        var baseColor = new THREE.Color().setRGB( value + Math.random() * 0.1, value, value + Math.random() * 0.1 );
+        
+        var topColor  = baseColor.clone().multiply( light );
+        var bottomColor = baseColor.clone().multiply( shadow );
+        var geometry    = buildingMesh.geometry;       
+        for ( var j = 0, jl = geometry.faces.length; j < jl; j ++ ) {
+            if ( j === 2 ) {
+                geometry.faces[ j ].vertexColors = [ baseColor, baseColor, baseColor, baseColor ];
+            } else {
+                geometry.faces[ j ].vertexColors = [ topColor, bottomColor, bottomColor, topColor ];
+            }
+        }
+
+        THREE.GeometryUtils.merge( cityGeometry, buildingMesh );
+    }
+    
+    var texture       = new THREE.Texture( generateTexture() );
+    texture.anisotropy = renderer.getMaxAnisotropy();
+    texture.needsUpdate    = true;
+    var material  = new THREE.MeshLambertMaterial({
+        map     : texture,
+        vertexColors    : THREE.VertexColors
+    });
+
+    var cityMesh = new THREE.Mesh(cityGeometry, material );
+    scene.add( cityMesh );
+
+}
+
+function generateTexture() {
+  var canvas  = document.createElement( 'canvas' );
+  canvas.width = 32;
+  canvas.height    = 64;
+  var context = canvas.getContext( '2d' );
+  context.fillStyle    = '#ffffff';
+  context.fillRect( 0, 0, 32, 64 );
+  for( var y = 2; y < 64; y += 2 ){
+      for( var x = 0; x < 32; x += 2 ){
+          var value   = Math.floor( Math.random() * 64 );
+          context.fillStyle = 'rgb(' + [value, value, value].join( ',' )  + ')';
+          context.fillRect( x, y, 2, 1 );
+      }
+  }
+
+  var canvas2 = document.createElement( 'canvas' );
+  canvas2.width    = 512;
+  canvas2.height   = 1024;
+  var context = canvas2.getContext( '2d' );
+  context.imageSmoothingEnabled        = false;
+  context.webkitImageSmoothingEnabled  = false;
+  context.mozImageSmoothingEnabled = false;
+  context.drawImage( canvas, 0, 0, canvas2.width, canvas2.height );
+  return canvas2;
+}
+
+window.addEventListener( 'resize', function(){
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+}, false );
+
+document.addEventListener("keydown", event => {
+  if (event.isComposing || event.keyCode === 229) {
+    return;
+  }
+});
+
+function animate() {
+    requestAnimationFrame( animate );
+
+    render();
+}
+
+function render() {
+    renderer.render( scene, camera );
+}
+
+init();
+animate();
+
+</script>
+</body>
+</html>
